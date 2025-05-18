@@ -1,0 +1,11 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/whatsapp.png</file>
+        <file>icons/gallery.png</file>
+        <file>icons/single-view.png</file>
+        <file>icons/pin.png</file>
+        <file>icons/print.png</file>
+        <file>icons/preview.png</file>
+    </qresource>
+</RCC>
+
