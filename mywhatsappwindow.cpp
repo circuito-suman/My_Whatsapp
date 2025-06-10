@@ -14,6 +14,8 @@
 #include <QDir>
 #include <QWebEngineView>
 #include <QWebEnginePage>
+#include<QWebChannel>
+#include <QSystemTrayIcon>
 
 MyWhatsappWindow::MyWhatsappWindow(QWidget *parent)
     : QMainWindow(parent)/*, ui(new Ui::MyWhatsappWindow)  // Initialize here*/
@@ -30,25 +32,35 @@ MyWhatsappWindow::MyWhatsappWindow(QWidget *parent)
     trayIcon->setContextMenu(trayMenu);
     trayIcon->show();
 
+    //
+
+    connect(trayIcon, &QSystemTrayIcon::messageClicked,
+            this, &MyWhatsappWindow::onMessageClicked);
+    //
+
     QString appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    // Add at startup
+    QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).removeRecursively();
+
     QDir().mkpath(appDataPath);
     qDebug() << QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 
 
-    // Persistent cookies
-    QWebEngineProfile::defaultProfile()->settings()->setAttribute(
-        QWebEngineSettings::JavascriptEnabled, true
-        );
+    // // Persistent cookies
+    // QWebEngineProfile::defaultProfile()->settings()->setAttribute(
+    //     QWebEngineSettings::JavascriptEnabled, true
+    //     );
 
-    QWebEngineProfile::defaultProfile()->setNotificationPresenter(
-        [this](std::unique_ptr<QWebEngineNotification> notification) {
-            trayIcon->showMessage(notification->title(), notification->message());
-            notification->show();
-        });
+    // QWebEngineProfile::defaultProfile()->setNotificationPresenter(
+    //     [this](std::unique_ptr<QWebEngineNotification> notification) {
+    //         trayIcon->showMessage(notification->title(), notification->message());
+    //         notification->show();
+    //     });
 
-    QWebEngineProfile::defaultProfile()->settings()->setAttribute(
-        QWebEngineSettings::PlaybackRequiresUserGesture, false
-        );
+
+
+
+
 
     // Check if codecs are enabled
     qDebug() << "Proprietary codecs enabled:"
@@ -59,18 +71,112 @@ MyWhatsappWindow::MyWhatsappWindow(QWidget *parent)
 
 
     QWebEngineProfile *profile = new QWebEngineProfile("MyWhatsappProfile", this);
-    profile->setPersistentStoragePath(appDataPath);
-    profile->setCachePath(appDataPath + "/Cache");
+    profile->setPersistentStoragePath(
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/storage"
+        );
+    profile->setCachePath(
+        QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+        );
+    profile->settings()->setAttribute(QWebEngineSettings::JavascriptEnabled, true);
+    profile->settings()->setAttribute(QWebEngineSettings::ErrorPageEnabled, false);
+
     profile->setPersistentCookiesPolicy(QWebEngineProfile::ForcePersistentCookies);
     profile->setHttpCacheMaximumSize(50 * 1024 * 1024); // 50 MB
-    profile->setHttpUserAgent("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.6367.207 Safari/537.36");
-    profile->settings()->setAttribute(QWebEngineSettings::PluginsEnabled, true);
-    profile->settings()->setAttribute(QWebEngineSettings::PdfViewerEnabled, true);
-    webView = new QWebEngineView(this);
-    webView->setPage(new QWebEnginePage(profile, webView));
 
-    webView->load(QUrl("https://web.whatsapp.com"));
+
+
+    profile->settings()->setAttribute(QWebEngineSettings::PdfViewerEnabled, true);
+    // profile->settings()->setUnknownUrlSchemePolicy(
+    //     QWebEngineSettings::AllowUnknownUrlSchemesFromUserInteraction
+    //     );
+    // profile->settings()->setAttribute(
+    //     QWebEngineSettings::AllowRunningInsecureContent,
+    //     false
+    //     );
+
+
+
+    profile->settings()->setAttribute(
+        QWebEngineSettings::PlaybackRequiresUserGesture, false
+        );
+
+
+    profile->setNotificationPresenter(
+        [this](std::unique_ptr<QWebEngineNotification> notification) {
+            QString cleanTitle = notification->title().replace(QRegularExpression("\\(\\d+\\)\\s*"), "");
+
+            // Only show if not already displayed
+            if(!activeNotifications.contains(cleanTitle)) {
+                trayIcon->showMessage(
+                    cleanTitle,
+                    notification->message(),
+                    QSystemTrayIcon::MessageIcon::Information, // Uses system-standard icon
+                    5000 // 5-second timeout
+                    );
+                // activeNotifications.insert(cleanTitle, QSystemTrayIcon::Information);
+            }
+            notification->close();  // Immediately close web notification
+        });
+
+
+    webView = new QWebEngineView(this);
+    // webView->setPage(new QWebEnginePage(profile, webView));
+    webView->setPage(new LinkHandler(profile, webView));  // Set custom page
+
+    webView->page()->profile()->setHttpUserAgent(
+        "Mozilla/5.0 (X11; Linux x86_64) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/125.0.0.0 Safari/537.36"
+        );
+
+    // webView->load(QUrl("https://web.whatsapp.com"));
+    QTimer::singleShot(0, this, [this]() {
+        webView->load(QUrl("https://web.whatsapp.com"));
+    });
+
+    connect(webView, &QWebEngineView::renderProcessTerminated,
+            this, &MyWhatsappWindow::onRenderProcessTerminated);
+
      setCentralWidget(webView);
+//
+
+     connect(webView, &QWebEngineView::loadFinished, [this](bool ok) {
+         if(ok) {
+             // All your JavaScript injections here
+             webView->page()->runJavaScript(R"(
+            // DOM safety checks
+            const videoElem = document.querySelector('video');
+            if(videoElem) {
+                videoElem.setAttribute('type', 'video/webm');
+            }
+
+            // Audio context setup
+            document.body.addEventListener('click', () => {
+                if(!window.audioContext) {
+                    window.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if(window.audioContext.state === 'suspended') {
+                    window.audioContext.resume();
+                }
+            }, { once: true });
+
+            // Link handling
+            document.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    if (e.ctrlKey) {
+                        window.open(e.target.href, '_system');
+                        e.preventDefault();
+                    } else if (e.shiftKey) {
+                        window.open(e.target.href, '_blank');
+                        e.preventDefault();
+                    }
+                }
+            });
+        )");
+         }
+     });
+
+
 
     // 2. Create media dock widget (initially hidden)
     mediaDock = new QDockWidget("Media Gallery", this);
@@ -167,6 +273,10 @@ MyWhatsappWindow::MyWhatsappWindow(QWidget *parent)
                 }
             });
 
+    //
+
+
+//
     connect(webView->page()->profile(), &QWebEngineProfile::downloadRequested,
             this, [this](QWebEngineDownloadRequest *download) {
                 // Ask user where to save the file
@@ -214,6 +324,24 @@ MyWhatsappWindow::MyWhatsappWindow(QWidget *parent)
                 // Handle cancel from progress dialog
                 connect(progress, &QProgressDialog::canceled, download, &QWebEngineDownloadRequest::cancel);
             });
+    connect(webView, &QWebEngineView::loadFinished, this, [this](bool ok) {
+        if(ok) {
+            // Initial DOM safety checks
+            webView->page()->runJavaScript(
+                "const videoElem = document.querySelector('video');"
+                "if(videoElem) {"
+                "    videoElem.setAttribute('type', 'video/webm');"
+                "}"
+                );
+
+            // Media source validation
+            webView->page()->runJavaScript(
+                "Array.from(document.querySelectorAll('img[src], video[src]'))"
+                "    .map(el => el.src || '')"
+                "    .filter(src => src && !src.startsWith('blob:') && !src.includes('emoji'));"
+                );
+        }
+    });
 
 
     connect(webView, &QWebEngineView::loadFinished,this, [this](bool ok) {
@@ -232,8 +360,10 @@ MyWhatsappWindow::MyWhatsappWindow(QWidget *parent)
     });
     // In your page load handler:
     webView->page()->runJavaScript(
-        "document.querySelector('video').setAttribute('type', 'video/webm');"
-        );
+        "var videoElem = document.querySelector('video');"
+        "if (videoElem) {"
+            "videoElem.setAttribute('type', 'video/webm');"
+       "}"        );
 
     // Create the button
     stayOnTopButton = new QToolButton(this);
@@ -248,11 +378,17 @@ MyWhatsappWindow::MyWhatsappWindow(QWidget *parent)
     // Notification handler
     QWebEngineProfile::defaultProfile()->setNotificationPresenter(
         [this](std::unique_ptr<QWebEngineNotification> notification) {
-            if (shouldShowNotification(notification->title(), notification->message())) {
+            QString key = notification->title() + notification->message();
+
+            // Only show if not already read
+            if(!activeNotifications.contains(key)) {
                 trayIcon->showMessage(notification->title(), notification->message());
+                activeNotifications.insert(key, QSystemTrayIcon::Information);
             }
-            notification->show();
+            notification->close(); // Close web notification immediately
         });
+
+
 
     connect(webView->page(), &QWebEnginePage::navigationRequested,
             this,
@@ -266,6 +402,34 @@ MyWhatsappWindow::MyWhatsappWindow(QWidget *parent)
                     request.accept();
                 }
             });
+
+    connect(webView, &QWebEngineView::loadFinished, [this](bool ok) {
+        if(ok) {
+            webView->page()->runJavaScript(R"(
+            function initElements() {
+                const observer = new MutationObserver(() => {
+                    const videoElem = document.querySelector('video');
+                    if(videoElem) {
+                        videoElem.setAttribute('type', 'video/webm');
+                        observer.disconnect();
+                    }
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+            }
+            initElements();
+        )");
+
+        }
+    });
+
+
+
+
+
+
+    // Handle message read events
+    webView->page()->setWebChannel(new QWebChannel(webView->page()));
+    webView->page()->webChannel()->registerObject("external", this);
 
     // In your main window constructor
     QToolButton *printBtn = new QToolButton(this);
@@ -291,9 +455,69 @@ MyWhatsappWindow::MyWhatsappWindow(QWidget *parent)
     titleBar->addWidget(printBtn);
 
 
+    //
+
+    // Set custom page
+    // Create LinkHandler with your profile
+    // LinkHandler *handler = new LinkHandler(profile, this);
+    // webView->setPage(handler);
+
+    // Change connections to use explicit LinkHandler* cast
+    LinkHandler *handler = qobject_cast<LinkHandler*>(webView->page());
+    if(handler) {
+        connect(handler, &LinkHandler::externalLinkRequested, this,
+                [](const QUrl &url) {
+                    QDesktopServices::openUrl(url);
+                });
+
+        connect(handler, &LinkHandler::internalLinkRequested,
+                [this](const QUrl &url) {
+                    webView->page()->runJavaScript(
+                        QString("window.open('%1', '_blank')").arg(url.toString()));
+                });
+    }
+
+
+
+    // In MyWhatsappWindow constructor
+    QTimer *syncTimer = new QTimer(this);
+    connect(syncTimer, &QTimer::timeout, this, [this]() {
+        webView->page()->runJavaScript(
+        "if(window.Store && window.Store.Msg) {"
+            "window.Store.Msg.syncFetchMessages();"
+        "}"
+            );
+    });
+    syncTimer->start(30000); // Sync every 30 seconds
+
+    QTimer *cleanupTimer = new QTimer(this);
+    connect(cleanupTimer, &QTimer::timeout, [this](){
+        activeNotifications.clear();
+        // trayIcon->hideMessage();  // Clear all tray messages
+        trayIcon->hide();  // Clear all tray messages
+        webView->page()->runJavaScript(
+            "document.querySelectorAll('video:not([type])').forEach(v => {"
+            "    v.setAttribute('type', 'video/webm');"
+            "});"
+            );
+
+    });
+    cleanupTimer->start(300000);  // 5 minutes
 
 
 }
+
+// Correct implementation with proper member access
+void MyWhatsappWindow::notify(const QString &message) {
+    QJsonObject obj = QJsonDocument::fromJson(message.toUtf8()).object();
+    if(obj["type"] == "messageRead") {
+        QString msgId = obj["id"].toString();
+        activeNotifications.remove(msgId);  // Now accesses member variable
+        trayIcon->hide();  // Now accesses member variable
+    }
+}
+
+
 bool MyWhatsappWindow::shouldShowNotification(const QString &title, const QString &message) {
     // Check against user-defined filters (store in QSettings or a list)
     return !title.contains("MutedContact") && !message.contains("spam");
@@ -477,4 +701,36 @@ void MyWhatsappWindow::updateUnreadCount(const QString &title) {
     // Extract unread count from page title
     if(title.contains('('))
         trayIcon->setToolTip(title.split('(')[1].split(')')[0] + " unread messages");
+}
+
+
+void MyWhatsappWindow::clearStaleNotifications() {
+    webView->page()->runJavaScript(
+        "(function() {"
+        "const unread = window.WAPI.getUnreadMessages();"
+        "return unread.map(msg => msg.id.id);"
+    "})()",
+        [this](const QVariant &result) {
+            QJsonArray unreadIds = result.toJsonArray();
+            QHash<QString, QSystemTrayIcon::MessageIcon> updated;
+            for(auto it = activeNotifications.begin(); it != activeNotifications.end(); ++it) {
+                if(unreadIds.contains(it.key())) {
+                    updated.insert(it.key(), it.value());
+                }
+            }
+            activeNotifications = updated;
+        });
+}
+
+
+void MyWhatsappWindow::onMessageClicked()
+{
+    // Handle tray notification click logic here
+    activateWindow();
+    raise();
+    setFocus();
+}
+void MyWhatsappWindow::onRenderProcessTerminated(QWebEnginePage::RenderProcessTerminationStatus status, int code) {
+    qWarning() << "Renderer terminated:" << status << "Exit code:" << code;
+    // Add recovery logic here
 }

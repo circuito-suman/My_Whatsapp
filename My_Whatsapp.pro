@@ -2,9 +2,11 @@ QT += widgets webenginewidgets printsupport
 CONFIG += c++17
 
 SOURCES += main.cpp \
+           linkhandler.cpp \
            mywhatsappwindow.cpp
 
-HEADERS += mywhatsappwindow.h
+HEADERS += mywhatsappwindow.h \
+    linkhandler.h
 
 RESOURCES += resources/resources.qrc
 
