@@ -1,0 +1,51 @@
+name: CI Build & Automated Tests
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & Verify (Ubuntu 24.04 LTS)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            ninja-build \
+            build-essential \
+            qt6-base-dev \
+            qt6-base-private-dev \
+            qt6-webengine-dev \
+            qt6-declarative-dev \
+            libgl1-mesa-dev \
+            libx11-dev \
+            libva-dev \
+            libpipewire-0.3-dev \
+            libpulse-dev
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_CXX_STANDARD=20
+
+      - name: Build Targets
+        run: |
+          cmake --build build -j4
+
+      - name: Run Automated Test Suite
+        run: |
+          cd build
+          ctest --output-on-failure

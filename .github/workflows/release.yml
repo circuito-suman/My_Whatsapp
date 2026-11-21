@@ -1,0 +1,58 @@
+name: Release & Packaging
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    name: Build Portable AppImage
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake \
+            ninja-build \
+            build-essential \
+            qt6-base-dev \
+            qt6-webengine-dev \
+            qt6-declarative-dev \
+            libgl1-mesa-dev \
+            libva-dev \
+            libpipewire-0.3-dev \
+            libfuse2 \
+            curl
+
+      - name: Build AppImage via build.sh
+        run: |
+          chmod +x build.sh
+          ./build.sh appimage
+
+      - name: Generate Checksums
+        run: |
+          cd build
+          if [ -f "WhatsApp-Desktop-x86_64.AppImage" ]; then
+            sha256sum WhatsApp-Desktop-x86_64.AppImage > WhatsApp-Desktop-x86_64.AppImage.sha256
+          fi
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            build/WhatsApp-Desktop-x86_64.AppImage
+            build/WhatsApp-Desktop-x86_64.AppImage.sha256
+          draft: false
+          prerelease: false
+          generate_release_notes: true

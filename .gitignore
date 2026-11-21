@@ -1,74 +1,27 @@
-# This file is used to ignore files which are generated
-# ----------------------------------------------------------------------------
-
-*~
-*.autosave
-*.a
-*.core
-*.moc
+# Build artifacts
+build/
+build-*/
 *.o
-*.obj
-*.orig
-*.rej
+*.a
 *.so
-*.so.*
-*_pch.h.cpp
-*_resource.rc
-*.qm
-.#*
-*.*#
-core
-!core/
-tags
-.DS_Store
-.directory
-*.debug
-Makefile*
-*.prl
-*.app
-moc_*.cpp
-ui_*.h
-qrc_*.cpp
-Thumbs.db
-*.res
-*.rc
-/.qmake.cache
-/.qmake.stash
+*.AppImage
+WhatsApp-Desktop.AppDir/
+linuxdeploy*
+WHATSAPP_REBASE
 
-# qtcreator generated files
-*.pro.user*
-CMakeLists.txt.user*
+# Logs & Environment
+*.log
+runtime_debug.log
+.env
 
-# xemacs temporary files
-*.flc
-
-# Vim temporary files
-.*.swp
-
-# Visual Studio generated files
-*.ib_pdb_index
-*.idb
-*.ilk
-*.pdb
-*.sln
-*.suo
-*.vcproj
-*vcproj.*.*.user
-*.ncb
-*.sdf
-*.opensdf
-*.vcxproj
-*vcxproj.*
-
-# MinGW generated files
-*.Debug
-*.Release
-
-# Python byte code
-*.pyc
-
-# Binaries
-# --------
-*.dll
-*.exe
-
+# Qt & IDE configurations
+moc_*
+ui_*
+qrc_*
+*.user
+.qt/
+.vscode/
+.sourcedive/
+.idea/
+*.swp
+*~

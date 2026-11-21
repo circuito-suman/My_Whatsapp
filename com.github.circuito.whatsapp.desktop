@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=WhatsApp Desktop
+Comment=Ultra-fast, native WhatsApp Desktop client with system tray, calling, and media persistence
+Exec=WHATSAPP_REBASE
+Icon=com.github.circuito.whatsapp
+Terminal=false
+Type=Application
+Categories=Network;InstantMessaging;Chat;
+Keywords=whatsapp;chat;messaging;web;call;video;
+StartupNotify=true
+StartupWMClass=WHATSAPP_REBASE
+MimeType=x-scheme-handler/whatsapp;

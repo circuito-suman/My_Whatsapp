@@ -1,0 +1,44 @@
+app-id: com.github.circuito.whatsapp
+runtime: org.kde.Platform
+runtime-version: '6.8'
+sdk: org.kde.Sdk
+base: io.qt.qtwebengine.BaseApp
+base-version: '6.8'
+command: WHATSAPP_REBASE
+
+finish-args:
+  # Network & IPC
+  - --share=network
+  - --share=ipc
+  # Display (Wayland & X11 fallback)
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Audio playback & microphone recording
+  - --socket=pulseaudio
+  # Hardware devices (Webcam, GPU acceleration)
+  - --device=all
+  # Media Downloads folder
+  - --filesystem=xdg-download:create
+  # Screen capture & PipeWire portal
+  - --filesystem=xdg-run/pipewire-0
+  - --talk-name=org.freedesktop.portal.Desktop
+  - --talk-name=org.freedesktop.portal.ScreenCast
+  # Notifications & System Tray
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
+  # MPRIS2 DBus interface for media keys
+  - --own-name=org.mpris.MediaPlayer2.whatsapp
+
+build-options:
+  env:
+    QTWEBENGINE_DISABLE_SANDBOX: '1'
+
+modules:
+  - name: whatsapp-desktop
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_BUILD_TYPE=Release
+    sources:
+      - type: dir
+        path: .
