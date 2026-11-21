@@ -558,5 +558,14 @@ void TestWhatsApp::cleanupTestCase()
     qDebug() << "============================================";
 }
 
-QTEST_MAIN(TestWhatsApp)
+int main(int argc, char *argv[])
+{
+    if (qEnvironmentVariableIsEmpty("DISPLAY") && qEnvironmentVariableIsEmpty("WAYLAND_DISPLAY")) {
+        qputenv("QT_QPA_PLATFORM", "offscreen");
+    }
+    QApplication app(argc, argv);
+    TestWhatsApp tc;
+    return QTest::qExec(&tc, argc, argv);
+}
+
 #include "test_whatsapp.moc"
