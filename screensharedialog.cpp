@@ -2,6 +2,7 @@
 #include <QIcon>
 #include <QDebug>
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
 ScreenShareDialog::ScreenShareDialog(const QWebEngineDesktopMediaRequest &request, QWidget *parent)
     : QDialog(parent)
     , m_request(request)
@@ -13,6 +14,18 @@ ScreenShareDialog::ScreenShareDialog(const QWebEngineDesktopMediaRequest &reques
     , m_cancelButton(nullptr)
     , m_handled(false)
 {
+#else
+ScreenShareDialog::ScreenShareDialog(QWidget *parent)
+    : QDialog(parent)
+    , m_tabWidget(nullptr)
+    , m_screensView(nullptr)
+    , m_windowsView(nullptr)
+    , m_statusLabel(nullptr)
+    , m_shareButton(nullptr)
+    , m_cancelButton(nullptr)
+    , m_handled(false)
+{
+#endif
     setWindowTitle(tr("Share Screen - WhatsApp Desktop"));
     setWindowIcon(QIcon(":/icons/whatsapp.png"));
     setMinimumSize(520, 380);
@@ -37,6 +50,7 @@ ScreenShareDialog::ScreenShareDialog(const QWebEngineDesktopMediaRequest &reques
     m_screensView->setMovement(QListView::Static);
     m_screensView->setSelectionMode(QAbstractItemView::SingleSelection);
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     if (m_request.screensModel()) {
         m_screensView->setModel(m_request.screensModel());
         connect(m_request.screensModel(), &QAbstractItemModel::rowsInserted, this, &ScreenShareDialog::updateSelectionAndState);
@@ -44,6 +58,7 @@ ScreenShareDialog::ScreenShareDialog(const QWebEngineDesktopMediaRequest &reques
         connect(m_request.screensModel(), &QAbstractItemModel::layoutChanged, this, &ScreenShareDialog::updateSelectionAndState);
         connect(m_request.screensModel(), &QAbstractItemModel::rowsRemoved, this, &ScreenShareDialog::updateSelectionAndState);
     }
+#endif
     m_tabWidget->addTab(m_screensView, tr("Entire Screen"));
 
     // Windows tab
@@ -55,6 +70,7 @@ ScreenShareDialog::ScreenShareDialog(const QWebEngineDesktopMediaRequest &reques
     m_windowsView->setMovement(QListView::Static);
     m_windowsView->setSelectionMode(QAbstractItemView::SingleSelection);
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     if (m_request.windowsModel()) {
         m_windowsView->setModel(m_request.windowsModel());
         connect(m_request.windowsModel(), &QAbstractItemModel::rowsInserted, this, &ScreenShareDialog::updateSelectionAndState);
@@ -62,6 +78,7 @@ ScreenShareDialog::ScreenShareDialog(const QWebEngineDesktopMediaRequest &reques
         connect(m_request.windowsModel(), &QAbstractItemModel::layoutChanged, this, &ScreenShareDialog::updateSelectionAndState);
         connect(m_request.windowsModel(), &QAbstractItemModel::rowsRemoved, this, &ScreenShareDialog::updateSelectionAndState);
     }
+#endif
     m_tabWidget->addTab(m_windowsView, tr("Application Window"));
 
     mainLayout->addWidget(m_tabWidget);
@@ -105,7 +122,9 @@ ScreenShareDialog::ScreenShareDialog(const QWebEngineDesktopMediaRequest &reques
 ScreenShareDialog::~ScreenShareDialog()
 {
     if (!m_handled) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
         m_request.cancel();
+#endif
         m_handled = true;
     }
 }
@@ -113,7 +132,9 @@ ScreenShareDialog::~ScreenShareDialog()
 void ScreenShareDialog::reject()
 {
     if (!m_handled) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
         m_request.cancel();
+#endif
         m_handled = true;
     }
     QDialog::reject();
@@ -133,13 +154,18 @@ void ScreenShareDialog::onTabChanged(int index)
 void ScreenShareDialog::updateSelectionAndState()
 {
     bool isScreensTab = (m_tabWidget->currentIndex() == 0);
-    QAbstractListModel *activeModel = isScreensTab ? m_request.screensModel() : m_request.windowsModel();
     QListView *activeView = isScreensTab ? m_screensView : m_windowsView;
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+    QAbstractListModel *activeModel = isScreensTab ? m_request.screensModel() : m_request.windowsModel();
     int rowCount = (activeModel != nullptr) ? activeModel->rowCount() : 0;
+#else
+    QAbstractListModel *activeModel = nullptr;
+    int rowCount = 0;
+#endif
 
     if (rowCount > 0) {
-        if (!activeView->currentIndex().isValid()) {
+        if (!activeView->currentIndex().isValid() && activeModel) {
             activeView->setCurrentIndex(activeModel->index(0, 0));
         }
         m_shareButton->setEnabled(true);
@@ -170,6 +196,7 @@ void ScreenShareDialog::onShareClicked()
     };
     Q_UNUSED(streamConfig);
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     if (m_tabWidget->currentIndex() == 0) {
         // Screens tab
         QModelIndex current = m_screensView->currentIndex();
@@ -215,6 +242,11 @@ void ScreenShareDialog::onShareClicked()
             return;
         }
     }
+#else
+    m_handled = true;
+    accept();
+    return;
+#endif
 
     qWarning() << "ScreenShareDialog: No screen or window was available to share yet.";
 }

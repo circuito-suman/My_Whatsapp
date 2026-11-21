@@ -1,10 +1,13 @@
 #ifndef WEBPAGE_H
 #define WEBPAGE_H
 
+#include <QtGlobal>
 #include <QWebEnginePage>
 #include <QWebEngineProfile>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
 #include <QWebEnginePermission>
 #include <QWebEngineDesktopMediaRequest>
+#endif
 #include <QWebEngineCertificateError>
 #include <QUrl>
 #include <string_view>
@@ -53,8 +56,10 @@ protected:
                                   const QString &sourceID) override;
 
 private slots:
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     void handlePermissionRequested(QWebEnginePermission permission);
     void handleDesktopMediaRequested(const QWebEngineDesktopMediaRequest &request);
+#endif
 
 private:
     void injectClientScripts();

@@ -25,3 +25,6 @@ qrc_*
 .idea/
 *.swp
 *~
+
+# Local metadata / Flatpak packaging files (kept locally in main, excluded from git)
+com.github.*

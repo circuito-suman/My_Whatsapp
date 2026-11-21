@@ -1,8 +1,11 @@
 #ifndef SCREENSHAREDIALOG_H
 #define SCREENSHAREDIALOG_H
 
+#include <QtGlobal>
 #include <QDialog>
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
 #include <QWebEngineDesktopMediaRequest>
+#endif
 #include <QTabWidget>
 #include <QListView>
 #include <QPushButton>
@@ -24,7 +27,11 @@ class ScreenShareDialog : public QDialog
 {
     Q_OBJECT
 public:
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     explicit ScreenShareDialog(const QWebEngineDesktopMediaRequest &request, QWidget *parent = nullptr);
+#else
+    explicit ScreenShareDialog(QWidget *parent = nullptr);
+#endif
     ~ScreenShareDialog() override;
 
 protected:
@@ -38,7 +45,9 @@ private slots:
     void onTabChanged(int index);
 
 private:
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     QWebEngineDesktopMediaRequest m_request;
+#endif
     QTabWidget *m_tabWidget;
     QListView *m_screensView;
     QListView *m_windowsView;

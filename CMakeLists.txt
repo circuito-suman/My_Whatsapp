@@ -116,18 +116,22 @@ install(TARGETS WHATSAPP_REBASE
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
-install(FILES com.github.circuito.whatsapp.desktop
-    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications
-)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/com.github.circuito.whatsapp.desktop")
+    install(FILES com.github.circuito.whatsapp.desktop
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/applications
+    )
+endif()
 
 install(FILES resources/icons/whatsapp.png
     DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/256x256/apps
-    RENAME com.github.circuito.whatsapp.png
+    RENAME whatsapp-desktop.png
 )
 
-install(FILES com.github.circuito.whatsapp.metainfo.xml
-    DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
-)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/com.github.circuito.whatsapp.metainfo.xml")
+    install(FILES com.github.circuito.whatsapp.metainfo.xml
+        DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/metainfo
+    )
+endif()
 
 install(FILES README.md
     DESTINATION ${CMAKE_INSTALL_DOCDIR}

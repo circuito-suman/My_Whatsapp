@@ -20,6 +20,7 @@
 <p align="center">
   <a href="#key-features">Key Features</a> •
   <a href="#the-story-and-genesis">The Story & Genesis</a> •
+  <a href="#codebase-structure">Codebase Overview</a> •
   <a href="#architecture-deep-dive">Architecture Deep Dive</a> •
   <a href="#memory-reduction-deep-dive">Memory Reduction</a> •
   <a href="#cxx20-hardening">C++20 Hardening</a> •
@@ -154,6 +155,71 @@ flowchart TD
     MSH --> VAAPI
     MW -. "Periodic malloc_trim(0)" .-> Glibc
 ```
+
+---
+
+<a id="codebase-structure"></a>
+### 📂 Directory Structure & Codebase Overview
+
+```
+.
+├── CMakeLists.txt                # Unified CMake build configuration with Qt auto-discovery
+├── build.sh                      # Unified build script (local build, AppImage bundling, clean)
+├── build_flatpak.sh              # Flatpak build helper script
+├── debug_gdb.sh                  # GDB debugger runner with QtWebEngine symbols
+├── profile_memory.sh             # Runtime private RAM and smaps profiler
+├── profile_perf.sh               # Linux perf performance counter profiling script
+├── setup.sh                      # Automated development dependencies installer
+├── .gitignore                    # Git tracking rules excluding build artifacts and caches
+│
+├── .github/
+│   └── workflows/
+│       ├── ci.yml                # Automated CI pipeline (build & 17 unit tests on Ubuntu 24.04)
+│       └── release.yml           # Automated release pipeline (AppImage packaging & SHA256)
+│
+├── main.cpp                      # Application entrypoint, CLI arguments (std::span), single-instance IPC
+├── mainwindow.h / .cpp           # Core desktop window, tabbed views, zoom scaling, theme sync
+├── webpage.h / .cpp              # WebEnginePage subclass, domain whitelist, WebRTC permissions, DOM scripts
+├── screensharedialog.h / .cpp    # Wayland PipeWire & X11 screen and application window picker
+├── mediaschemehandler.h / .cpp   # In-memory wa-media:// custom scheme handler for CSP-bypassed streaming
+├── traymanager.h / .cpp          # Dynamic system tray daemon with antialiased unread count pill badge
+├── mprisplayer.h / .cpp          # Linux MPRIS2 DBus media player controller for hardware media keys
+├── downloadmanager.h / .cpp      # Sandboxed downloads manager (path sanitization, std::ranges::sort)
+├── popoutwindow.h / .cpp         # Lightweight isolated calling popout window host with zero-delay hangup
+├── systemintegration.h / .cpp    # Desktop environment detector (GNOME, KDE, Wayland) & dark theme listener
+├── exportdialog.h / .cpp         # Chat export interface with CWE-1236 CSV formula injection defense
+├── mediagallery.h / .cpp         # Media gallery view dialog
+├── settingsdialog.h / .cpp       # Settings and preferences dialog
+│
+├── resources/
+│   ├── resources.qrc             # Qt resource bundle manifest
+│   └── icons/                    # High-DPI application and system tray icons
+│       ├── whatsapp.png
+│       ├── whatsapp-original.png
+│       ├── account-switch.png
+│       ├── gallery.png
+│       ├── preview.png
+│       └── ...
+│
+└── tests/
+    └── test_whatsapp.cpp         # Comprehensive 17-test automated verification test suite
+```
+
+#### Core Architectural Modules Explained
+
+* **`main.cpp`**: Application entrypoint. Implements modern C++20 `std::span` for bounds-safe CLI argument inspection, initializes single-instance enforcement via local Unix domain sockets (`QLocalServer`), activates chromium flags (`--renderer-process-limit=1`, `--max-old-space-size=256`), and spins up the 30-second glibc `malloc_trim(0)` kernel unmapping timer.
+* **`mainwindow.h / .cpp`**: Primary application window hosting the `QWebEngineView`. Orchestrates user interactions, window state restoration, desktop notifications, MPRIS2 event routing, zoom scaling (`Ctrl++` / `Ctrl+-`), dynamic theme synchronization, and shortcut bindings.
+* **`webpage.h / .cpp`**: Custom `QWebEnginePage` implementing enterprise-grade security. Enforces domain whitelisting against WhatsApp production hosts, prohibits navigation to `file://` and `qrc://` URLs, routes clicked external links to the default Linux browser (suppressed during headless tests), and injects native DOM listeners for incoming WebRTC call detection and unread message counter events.
+* **`screensharedialog.h / .cpp`**: Wayland and X11 screen sharing picker for WhatsApp voice and video calls. Hooks into the `desktopMediaRequested` WebEngine signal and Freedesktop `xdg-desktop-portal` via PipeWire to enumerate physical monitors and open windows without requiring XWayland.
+* **`mediaschemehandler.h / .cpp`**: In-memory custom scheme handler registered under `wa-media://`. Bypasses WhatsApp Web's strict Content Security Policy (`img-src 'self' blob:`) to stream high-resolution status videos and caller avatars directly through memory without leaking temporary files to disk. Uses C++20 `std::span` for bounds-safe MIME inspection.
+* **`traymanager.h / .cpp`**: Linux system tray integration daemon. Uses `QPainter` with subpixel antialiasing and C++20 `<numbers>` (`std::numbers::pi_v<float>`) to render dynamic unread count badges (circular for 1-9, rounded pill capsules for 10-99+), with click-to-minimize and window-raising actions.
+* **`mprisplayer.h / .cpp`**: Implements the Freedesktop MPRIS2 DBus interface (`org.mpris.MediaPlayer2.whatsapp`), connecting keyboard Play/Pause media keys and desktop environment widgets directly to WhatsApp voice notes and audio playback.
+* **`downloadmanager.h / .cpp`**: Dedicated download manager (`Ctrl+J`) saving files to `~/Downloads/WhatsApp/`. Sanitizes filenames against path traversal attacks (`../`, `..\`), clamps permissions to non-executable `0644`, and sorts download history using C++20 `std::ranges::sort` and spaceship operator `<=>`.
+* **`popoutwindow.h / .cpp`**: Isolated native window dedicated to WhatsApp popout calls (`web.whatsapp.com/call/popout`). Enforces instant zero-latency window destruction upon call hangup, eliminating the 1-2 second blank-screen delay found in web wrappers.
+* **`systemintegration.h / .cpp`**: System environment utility that queries running display servers (Wayland vs X11) and desktop environments (GNOME, KDE Plasma, Sway, COSMIC) to seamlessly align app styling and theme mode.
+* **`exportdialog.h / .cpp`**: Chat export interface with built-in CWE-1236 CSV formula injection defense, prepending apostrophes to dangerous prefixes (`=`, `+`, `-`, `@`).
+* **`tests/test_whatsapp.cpp`**: 17-test verification harness exercising security guards, path sanitization, MPRIS2 state transitions, badging math, media codecs, and modern C++20 features.
+* **`build.sh`**: Unified shell build utility supporting local builds, portable AppImage generation, and cleaning.
 
 ---
 

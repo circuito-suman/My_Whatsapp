@@ -34,8 +34,10 @@ WebPage::WebPage(QWebEngineProfile *profile, QObject *parent)
     QT_WARNING_POP
 #endif
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     // Desktop Media Capture (Screen Sharing) for WhatsApp Calls
     connect(this, &QWebEnginePage::desktopMediaRequested, this, &WebPage::handleDesktopMediaRequested);
+#endif
 
     // SSL Certificate Error logging
     connect(this, &QWebEnginePage::certificateError, this, [](const QWebEngineCertificateError &error) {
@@ -138,6 +140,7 @@ void WebPage::javaScriptConsoleMessage(JavaScriptConsoleMessageLevel level,
     qDebug().noquote() << QString("[JS %1] [%2:%3] %4").arg(levelStr, src, QString::number(lineNumber), message);
 }
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
 void WebPage::handlePermissionRequested(QWebEnginePermission permission)
 {
     const QString host = permission.origin().host();
@@ -158,6 +161,7 @@ void WebPage::handleDesktopMediaRequested(const QWebEngineDesktopMediaRequest &r
     dialog->setAttribute(Qt::WA_DeleteOnClose);
     dialog->show();
 }
+#endif
 
 void WebPage::injectClientScripts()
 {
