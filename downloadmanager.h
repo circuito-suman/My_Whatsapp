@@ -29,7 +29,8 @@ struct DownloadItem {
 
     // C++20 Spaceship Three-Way Comparison Operator
     std::weak_ordering operator<=>(const DownloadItem &other) const {
-        if (auto cmp = timestamp <=> other.timestamp; cmp != 0) return cmp;
+        if (timestamp < other.timestamp) return std::weak_ordering::less;
+        if (timestamp > other.timestamp) return std::weak_ordering::greater;
         return progress <=> other.progress;
     }
     bool operator==(const DownloadItem &other) const {

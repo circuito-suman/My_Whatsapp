@@ -14,13 +14,12 @@ WebPage::WebPage(QWebEngineProfile *profile, QObject *parent)
     // Screen sharing enabled
     settings()->setAttribute(QWebEngineSettings::ScreenCaptureEnabled, true);
 
-    // Modern Qt 6.8+ permission handler
+    // Modern Qt 6.7+ permission handler
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     connect(this, &QWebEnginePage::permissionRequested, this, &WebPage::handlePermissionRequested);
+#endif
 
-#if QT_DEPRECATED_SINCE(6, 8)
-    QT_WARNING_PUSH
-    QT_WARNING_DISABLE_DEPRECATED
-    // Connect deprecated featurePermissionRequested for full backward and forward compatibility
+    // Connect featurePermissionRequested for full backward and forward compatibility
     connect(this, &QWebEnginePage::featurePermissionRequested, this, [this](const QUrl &securityOrigin, QWebEnginePage::Feature feature) {
         const QString host = securityOrigin.host();
         if (isTrustedHost(host) || host.isEmpty() || securityOrigin.toString().contains("whatsapp")) {
@@ -31,8 +30,6 @@ WebPage::WebPage(QWebEngineProfile *profile, QObject *parent)
             setFeaturePermission(securityOrigin, feature, QWebEnginePage::PermissionDeniedByUser);
         }
     });
-    QT_WARNING_POP
-#endif
 
 #if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
     // Desktop Media Capture (Screen Sharing) for WhatsApp Calls
