@@ -30,9 +30,11 @@ SystemIntegration::SystemIntegration(QObject *parent)
 
     // Monitor system color scheme (Dark / Light)
     if (QGuiApplication::styleHints()) {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this](Qt::ColorScheme scheme) {
             emit systemThemeChanged(scheme == Qt::ColorScheme::Dark);
         });
+#endif
     }
 
 #ifdef HAVE_DBUS
@@ -121,10 +123,13 @@ bool SystemIntegration::isSystemTrayAvailable() const
 
 bool SystemIntegration::isSystemDarkTheme() const
 {
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     if (QGuiApplication::styleHints()) {
         return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
     }
-    return false;
+#endif
+    QPalette palette = QGuiApplication::palette();
+    return palette.color(QPalette::WindowText).lightness() > palette.color(QPalette::Window).lightness();
 }
 
 bool SystemIntegration::showNativeNotification(const QString &title, const QString &message,
