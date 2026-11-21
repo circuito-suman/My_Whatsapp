@@ -19,10 +19,13 @@ void MediaSchemeHandler::registerScheme()
 {
     QWebEngineUrlScheme mediaScheme("wa-media");
     mediaScheme.setSyntax(QWebEngineUrlScheme::Syntax::Host);
-    mediaScheme.setFlags(QWebEngineUrlScheme::SecureScheme |
-                         QWebEngineUrlScheme::CorsEnabled |
-                         QWebEngineUrlScheme::FetchApiAllowed |
-                         QWebEngineUrlScheme::ContentSecurityPolicyIgnored);
+    QWebEngineUrlScheme::Flags flags = QWebEngineUrlScheme::SecureScheme |
+                                       QWebEngineUrlScheme::CorsEnabled |
+                                       QWebEngineUrlScheme::ContentSecurityPolicyIgnored;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 6, 0)
+    flags |= QWebEngineUrlScheme::FetchApiAllowed;
+#endif
+    mediaScheme.setFlags(flags);
     QWebEngineUrlScheme::registerScheme(mediaScheme);
     qDebug() << "MediaSchemeHandler: 'wa-media' scheme registered with SecureScheme, Host syntax, CORS, Fetch, and CSP-Ignored permissions";
 }
@@ -117,14 +120,16 @@ void MediaSchemeHandler::requestStarted(QWebEngineUrlRequestJob *job)
     }
 
     if (url.host() == "transcode" || url.path().contains("transcode")) {
-        QIODevice *payload = job->requestBody();
         QByteArray data;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+        QIODevice *payload = job->requestBody();
         if (payload) {
             if (!payload->isOpen()) {
                 payload->open(QIODevice::ReadOnly);
             }
             data = payload->readAll();
         }
+#endif
 
         if (data.isEmpty()) {
             qWarning() << "MediaSchemeHandler: Empty payload for transcode request";
@@ -200,14 +205,16 @@ void MediaSchemeHandler::requestStarted(QWebEngineUrlRequestJob *job)
     }
 
     if (url.host() == "play" || url.path().contains("play")) {
-        QIODevice *payload = job->requestBody();
         QByteArray data;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+        QIODevice *payload = job->requestBody();
         if (payload) {
             if (!payload->isOpen()) {
                 payload->open(QIODevice::ReadOnly);
             }
             data = payload->readAll();
         }
+#endif
 
         if (!data.isEmpty()) {
             QString tempDir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + "/temp_media";
@@ -245,14 +252,16 @@ void MediaSchemeHandler::requestStarted(QWebEngineUrlRequestJob *job)
     }
 
     if (url.host() == "caller" || url.path().contains("caller")) {
-        QIODevice *payload = job->requestBody();
         QByteArray data;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 7, 0)
+        QIODevice *payload = job->requestBody();
         if (payload) {
             if (!payload->isOpen()) {
                 payload->open(QIODevice::ReadOnly);
             }
             data = payload->readAll();
         }
+#endif
 
         QString callerName;
         bool isVideo = false;
