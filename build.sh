@@ -11,17 +11,31 @@ BUILD_DIR="$PROJECT_DIR/build"
 export QTFRAMEWORK_BYPASS_LICENSE_CHECK=1
 
 # Auto-detect Qt 6 Installation Path
-if [ -z "$QT_DIR" ]; then
-    DETECTED_QT=$(ls -d "$HOME"/Qt/6.*/gcc_64 2>/dev/null | sort -V | tail -n 1)
-    if [ -n "$DETECTED_QT" ] && [ -d "$DETECTED_QT" ]; then
-        QT_DIR="$DETECTED_QT"
+if [ -z "$QT_DIR" ] && [ -f "$BUILD_DIR/CMakeCache.txt" ]; then
+    CACHED_QT6_DIR=$(grep -E '^Qt6_DIR:PATH=' "$BUILD_DIR/CMakeCache.txt" | cut -d= -f2-)
+    if [ -n "$CACHED_QT6_DIR" ] && [[ "$CACHED_QT6_DIR" == */lib/cmake/Qt6 ]]; then
+        CANDIDATE_QT="${CACHED_QT6_DIR%/lib/cmake/Qt6}"
+        if [ -d "$CANDIDATE_QT" ]; then
+            QT_DIR="$CANDIDATE_QT"
+        fi
     fi
 fi
 
+if [ -z "$QT_DIR" ]; then
+    for pattern in "$HOME"/Qt/6.8.*/gcc_64 "$HOME"/Qt/6.*/gcc_64; do
+        for dir in $(ls -d $pattern 2>/dev/null | sort -V -r); do
+            if [ -f "$dir/lib/libQt6WebEngineWidgets.so.6" ] && [ -f "$dir/lib/libQt6WebChannel.so.6" ]; then
+                QT_DIR="$dir"
+                break 2
+            fi
+        done
+    done
+fi
+
 if [ -n "$QT_DIR" ] && [ -d "$QT_DIR" ]; then
-    export CMAKE_PREFIX_PATH="$QT_DIR:$CMAKE_PREFIX_PATH"
+    export CMAKE_PREFIX_PATH="$QT_DIR${CMAKE_PREFIX_PATH:+:$CMAKE_PREFIX_PATH}"
     export PATH="$QT_DIR/bin:$PATH"
-    export LD_LIBRARY_PATH="$QT_DIR/lib:$LD_LIBRARY_PATH"
+    export LD_LIBRARY_PATH="$QT_DIR/lib:/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
     if [ -f "$QT_DIR/bin/qmake" ]; then
         export QMAKE="$QT_DIR/bin/qmake"
     fi
@@ -134,15 +148,48 @@ EOD
     # Build AppImage
     print_info "Creating AppImage..."
     export QML_SOURCES_PATHS="$PROJECT_DIR"
-    export EXTRA_PLATFORM_PLUGINS="wayland;wayland-egl"
-    export EXTRA_QT_PLUGINS="wayland-decoration-client;wayland-graphics-integration-client;wayland-shell-integration"
+
+    local qt_plugins_dir=""
+    if [ -n "${QMAKE:-}" ] && [ -x "$QMAKE" ]; then
+        qt_plugins_dir="$("$QMAKE" -query QT_INSTALL_PLUGINS 2>/dev/null || true)"
+    fi
+
+    local extra_platforms=()
+    for p in libqwayland-generic.so libqwayland-egl.so; do
+        if [ -n "$qt_plugins_dir" ] && [ -f "$qt_plugins_dir/platforms/$p" ]; then
+            extra_platforms+=("$p")
+        fi
+    done
+    if [ ${#extra_platforms[@]} -gt 0 ]; then
+        export EXTRA_PLATFORM_PLUGINS="$(IFS=';'; echo "${extra_platforms[*]}")"
+    fi
+
+    local extra_qt_plugins=()
+    for dir in wayland-decoration-client wayland-shell-integration; do
+        if [ -n "$qt_plugins_dir" ] && [ -d "$qt_plugins_dir/$dir" ]; then
+            extra_qt_plugins+=("$dir")
+        fi
+    done
+    if [ ${#extra_qt_plugins[@]} -gt 0 ]; then
+        export EXTRA_QT_PLUGINS="$(IFS=';'; echo "${extra_qt_plugins[*]}")"
+    fi
+
+    rm -f WhatsApp*Desktop*.AppImage
 
     ./linuxdeploy-x86_64.AppImage --appdir WhatsApp-Desktop.AppDir \
         --executable WHATSAPP_REBASE \
         --desktop-file WhatsApp-Desktop.AppDir/whatsapp-desktop.desktop \
         --icon-file WhatsApp-Desktop.AppDir/whatsapp-desktop.png \
-        --plugin qt \
-        --output appimage || true
+        --plugin qt
+
+    # linuxdeploy-plugin-qt omits wayland-graphics-integration-client, which is required for Wayland EGL rendering
+    if [ -n "$qt_plugins_dir" ] && [ -d "$qt_plugins_dir/wayland-graphics-integration-client" ]; then
+        mkdir -p WhatsApp-Desktop.AppDir/usr/plugins/wayland-graphics-integration-client
+        cp -a "$qt_plugins_dir/wayland-graphics-integration-client/"*.so \
+            WhatsApp-Desktop.AppDir/usr/plugins/wayland-graphics-integration-client/
+    fi
+
+    ./linuxdeploy-x86_64.AppImage --appdir WhatsApp-Desktop.AppDir --output appimage
 
     # Rename result if created
     local appimage=$(find . -maxdepth 1 -name "WhatsApp*Desktop*.AppImage" ! -name "linuxdeploy*" | head -1)
