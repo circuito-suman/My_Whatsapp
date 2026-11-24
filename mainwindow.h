@@ -8,6 +8,7 @@
 #include <QTimer>
 #include <QShortcut>
 
+class QToolBar;
 class WebPage;
 class TrayManager;
 class MediaGallery;
@@ -53,6 +54,7 @@ private:
     void setupShortcuts();
     void setupMemoryOptimization();
     void updateZoomLabel();
+    void applyNativeTheme(bool dark);
 
     QWebEngineProfile *m_profile;
     QWebEngineView *m_webView;
@@ -70,6 +72,7 @@ private:
     QString m_lastCallCaller;
     qint64 m_lastCallTime = 0;
 
+    QToolBar *m_toolbar;
     QToolButton *m_stayOnTopButton;
     QToolButton *m_themeButton;
     QToolButton *m_downloadsButton;

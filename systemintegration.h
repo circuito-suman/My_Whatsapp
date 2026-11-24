@@ -67,6 +67,7 @@ private:
     DisplayServer m_displayServer;
     mutable bool m_trayAvailabilityChecked;
     mutable bool m_trayAvailable;
+    bool m_initialPaletteDark;
 
 #ifdef HAVE_DBUS
     bool sendDBusNotification(const QString &title, const QString &message,

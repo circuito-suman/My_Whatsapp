@@ -20,7 +20,12 @@ SystemIntegration::SystemIntegration(QObject *parent)
     : QObject(parent)
     , m_trayAvailabilityChecked(false)
     , m_trayAvailable(false)
+    , m_initialPaletteDark(false)
 {
+    const QPalette initialPalette = QGuiApplication::palette();
+    m_initialPaletteDark = initialPalette.color(QPalette::WindowText).lightness() >
+                           initialPalette.color(QPalette::Window).lightness();
+
     m_desktopEnv = detectDesktopEnvironment();
     m_displayServer = detectDisplayServer();
 
@@ -32,7 +37,11 @@ SystemIntegration::SystemIntegration(QObject *parent)
     if (QGuiApplication::styleHints()) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
         connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged, this, [this](Qt::ColorScheme scheme) {
-            emit systemThemeChanged(scheme == Qt::ColorScheme::Dark);
+            if (scheme == Qt::ColorScheme::Unknown) {
+                emit systemThemeChanged(m_initialPaletteDark);
+            } else {
+                emit systemThemeChanged(scheme == Qt::ColorScheme::Dark);
+            }
         });
 #endif
     }
@@ -125,11 +134,16 @@ bool SystemIntegration::isSystemDarkTheme() const
 {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     if (QGuiApplication::styleHints()) {
-        return QGuiApplication::styleHints()->colorScheme() == Qt::ColorScheme::Dark;
+        const Qt::ColorScheme scheme = QGuiApplication::styleHints()->colorScheme();
+        if (scheme == Qt::ColorScheme::Dark) {
+            return true;
+        }
+        if (scheme == Qt::ColorScheme::Light) {
+            return false;
+        }
     }
 #endif
-    QPalette palette = QGuiApplication::palette();
-    return palette.color(QPalette::WindowText).lightness() > palette.color(QPalette::Window).lightness();
+    return m_initialPaletteDark;
 }
 
 bool SystemIntegration::showNativeNotification(const QString &title, const QString &message,

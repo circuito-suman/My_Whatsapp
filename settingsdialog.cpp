@@ -6,6 +6,7 @@
 #include <QFormLayout>
 #include <QFileDialog>
 #include <QLabel>
+#include <QShowEvent>
 #include <QStandardPaths>
 
 SettingsDialog::SettingsDialog(DownloadManager *downloadManager, QWidget *parent)
@@ -133,7 +134,7 @@ bool SettingsDialog::getCloseToTray()
 int SettingsDialog::getThemeMode()
 {
     QSettings settings;
-    return settings.value("Appearance/Theme", 0).toInt();
+    return settings.value("Appearance/Theme", 1).toInt();
 }
 
 qreal SettingsDialog::getZoomFactor()
@@ -204,10 +205,17 @@ void SettingsDialog::saveSettings()
 
     settings.setValue("Notifications/Enabled", m_notificationsCheck->isChecked());
     settings.setValue("Notifications/ShowPreview", m_notificationPreviewCheck->isChecked());
+    settings.sync();
 
     emit themeChanged(themeMode);
     emit zoomChanged(zoom);
     emit downloadSettingsChanged();
+}
+
+void SettingsDialog::showEvent(QShowEvent *event)
+{
+    loadSettings();
+    QDialog::showEvent(event);
 }
 
 void SettingsDialog::onBrowseDownloadDir()

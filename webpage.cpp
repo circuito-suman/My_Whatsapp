@@ -425,20 +425,46 @@ void WebPage::applyTheme(bool dark)
 {
     const QString themeScript = QString(R"(
         (function() {
+            const isDark = %2;
+            const targetTheme = %1;
+            window.__wa_target_dark = isDark;
+
+            const syncTheme = function() {
+                try {
+                    if (document.documentElement) {
+                        document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+                    }
+                    if (document.body && document.body.classList.contains('dark') !== isDark) {
+                        document.body.classList.toggle('dark', isDark);
+                    }
+                } catch(e) {}
+            };
+
             try {
                 if (window.localStorage) {
-                    const targetTheme = '%1';
                     localStorage.setItem('theme', targetTheme);
-                    if (document.body) {
-                        document.body.classList.toggle('dark', %2);
-                    }
                     window.dispatchEvent(new Event('storage'));
                 }
             } catch(e) {
                 // Ignore storage access before origin is bound
             }
+
+            syncTheme();
+
+            if (document.body && !window.__wa_theme_observer) {
+                window.__wa_theme_observer = new MutationObserver(() => {
+                    const desired = Boolean(window.__wa_target_dark);
+                    if (document.body && document.body.classList.contains('dark') !== desired) {
+                        document.body.classList.toggle('dark', desired);
+                    }
+                });
+                window.__wa_theme_observer.observe(document.body, {
+                    attributes: true,
+                    attributeFilter: ['class']
+                });
+            }
         })();
-    )").arg(dark ? "dark" : "light").arg(dark ? "true" : "false");
+    )").arg(dark ? "'\"dark\"'" : "'\"light\"'").arg(dark ? "true" : "false");
 
     runJavaScript(themeScript);
 }

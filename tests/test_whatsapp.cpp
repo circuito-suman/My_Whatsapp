@@ -214,17 +214,38 @@ void TestWhatsApp::testSettingsPersistence()
     qDebug() << "[TEST 5] Testing QSettings Persistence Round-Trip...";
 
     QSettings settings;
+    settings.clear();
+
+    // Default theme mode should be Dark (1)
+    QCOMPARE(SettingsDialog::getThemeMode(), 1);
+
     settings.setValue("General/DownloadDirectory", "/tmp/whatsapp_test_dl");
     settings.setValue("General/AutoDownload", false);
-    settings.setValue("Appearance/Theme", 1); // Dark
+    settings.setValue("Appearance/Theme", 2); // Light
     settings.setValue("Appearance/ZoomFactor", 1.25);
     settings.setValue("Notifications/Enabled", true);
+    settings.sync();
 
     QCOMPARE(SettingsDialog::getDownloadDirectory(), QString("/tmp/whatsapp_test_dl"));
     QCOMPARE(SettingsDialog::getAutoDownload(), false);
-    QCOMPARE(SettingsDialog::getThemeMode(), 1);
+    QCOMPARE(SettingsDialog::getThemeMode(), 2);
     QVERIFY(qFuzzyCompare(SettingsDialog::getZoomFactor(), 1.25));
     QCOMPARE(SettingsDialog::getNotificationsEnabled(), true);
+
+    // Verify Dark (1) and System (0) persistence and dialog reload sync
+    settings.setValue("Appearance/Theme", 1);
+    settings.sync();
+    QCOMPARE(SettingsDialog::getThemeMode(), 1);
+
+    DownloadManager dm(nullptr);
+    SettingsDialog dlg(&dm);
+    settings.setValue("Appearance/Theme", 2);
+    settings.sync();
+    dlg.show();
+    QComboBox *themeCombo = dlg.findChild<QComboBox *>();
+    QVERIFY(themeCombo != nullptr);
+    QCOMPARE(themeCombo->currentData().toInt(), 2);
+    dlg.hide();
 
     // Clean up
     settings.clear();
@@ -328,6 +349,15 @@ void TestWhatsApp::testSystemIntegration()
 
     bool isDark = sys.isSystemDarkTheme();
     qDebug() << "  Current System Theme Is Dark:" << isDark;
+
+    // Verify application palette overrides do not corrupt cached initial system theme detection
+    const QPalette originalPalette = QApplication::palette();
+    QPalette flippedPalette = originalPalette;
+    flippedPalette.setColor(QPalette::Window, isDark ? Qt::white : Qt::black);
+    flippedPalette.setColor(QPalette::WindowText, isDark ? Qt::black : Qt::white);
+    QApplication::setPalette(flippedPalette);
+    QCOMPARE(sys.isSystemDarkTheme(), isDark);
+    QApplication::setPalette(originalPalette);
 
     qDebug() << "✓ PASSED: System environment query successful.";
 }

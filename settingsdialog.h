@@ -31,6 +31,9 @@ signals:
     void zoomChanged(qreal zoomFactor);
     void downloadSettingsChanged();
 
+protected:
+    void showEvent(QShowEvent *event) override;
+
 private slots:
     void onBrowseDownloadDir();
     void onSaveClicked();

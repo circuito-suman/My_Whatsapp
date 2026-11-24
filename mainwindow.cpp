@@ -23,6 +23,7 @@
 #include <QUrl>
 #include <QCloseEvent>
 #include <QApplication>
+#include <QPalette>
 #include <QMessageBox>
 #include <QKeySequence>
 #include <QSettings>
@@ -43,6 +44,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_settingsDialog(nullptr)
     , m_mprisPlayer(nullptr)
     , m_mediaSchemeHandler(nullptr)
+    , m_toolbar(nullptr)
     , m_stayOnTopButton(nullptr)
     , m_themeButton(nullptr)
     , m_downloadsButton(nullptr)
@@ -51,7 +53,7 @@ MainWindow::MainWindow(QWidget *parent)
     , m_statusLabel(nullptr)
     , m_memoryTimer(nullptr)
     , m_forceClose(false)
-    , m_isDarkTheme(false)
+    , m_isDarkTheme(true)
     , m_currentZoom(1.0)
 {
     // Step 1: Immediate geometry setup / restore BEFORE any WebEngine widget is created.
@@ -362,13 +364,10 @@ void MainWindow::setupUI()
     m_exportDialog = new ExportDialog(m_webView, this);
 
     // Sleek Modern Toolbar
-    QToolBar *toolbar = new QToolBar(tr("Main Toolbar"), this);
-    toolbar->setMovable(false);
-    toolbar->setIconSize(QSize(20, 20));
-    toolbar->setStyleSheet("QToolBar { background-color: palette(window); border-bottom: 1px solid palette(mid); spacing: 4px; padding: 2px 8px; }"
-                           "QToolButton { border: none; border-radius: 4px; padding: 4px; }"
-                           "QToolButton:hover { background-color: palette(highlight); color: palette(highlightedText); }"
-                           "QToolButton:checked { background-color: palette(midlight); }");
+    m_toolbar = new QToolBar(tr("Main Toolbar"), this);
+    m_toolbar->setObjectName("mainToolbar");
+    m_toolbar->setMovable(false);
+    m_toolbar->setIconSize(QSize(20, 20));
 
     // New Chat Action
     QToolButton *newChatBtn = new QToolButton(this);
@@ -377,14 +376,14 @@ void MainWindow::setupUI()
     connect(newChatBtn, &QToolButton::clicked, this, [this]() {
         if (m_webPage) m_webPage->triggerNewChat();
     });
-    toolbar->addWidget(newChatBtn);
+    m_toolbar->addWidget(newChatBtn);
 
     // Media Gallery Action
     QAction *galleryAction = m_mediaGallery->toggleViewAction();
     galleryAction->setIcon(QIcon(":/icons/gallery.png"));
     galleryAction->setText(tr("Media Gallery"));
     galleryAction->setToolTip(tr("Toggle Media Gallery"));
-    toolbar->addAction(galleryAction);
+    m_toolbar->addAction(galleryAction);
 
     // Media Gallery Click Handler
     connect(m_mediaGallery, &MediaGallery::mediaItemClicked, this, [this](QListWidgetItem *item) {
@@ -403,43 +402,43 @@ void MainWindow::setupUI()
     exportBtn->setIcon(QIcon(":/icons/preview.png"));
     exportBtn->setToolTip(tr("Export Current Chat to CSV"));
     connect(exportBtn, &QToolButton::clicked, this, &MainWindow::onExportTriggered);
-    toolbar->addWidget(exportBtn);
+    m_toolbar->addWidget(exportBtn);
 
     // Downloads Button
     m_downloadsButton = new QToolButton(this);
     m_downloadsButton->setIcon(QIcon(":/icons/print.png"));
     m_downloadsButton->setToolTip(tr("Downloads Manager (Ctrl+J)"));
     connect(m_downloadsButton, &QToolButton::clicked, this, &MainWindow::openDownloads);
-    toolbar->addWidget(m_downloadsButton);
+    m_toolbar->addWidget(m_downloadsButton);
 
-    toolbar->addSeparator();
+    m_toolbar->addSeparator();
 
     // Zoom Controls
     QToolButton *zoomOutBtn = new QToolButton(this);
     zoomOutBtn->setText("−");
     zoomOutBtn->setToolTip(tr("Zoom Out (Ctrl+-)"));
     connect(zoomOutBtn, &QToolButton::clicked, this, &MainWindow::zoomOut);
-    toolbar->addWidget(zoomOutBtn);
+    m_toolbar->addWidget(zoomOutBtn);
 
     m_zoomLabel = new QLabel("100%", this);
     m_zoomLabel->setFixedWidth(45);
     m_zoomLabel->setAlignment(Qt::AlignCenter);
-    toolbar->addWidget(m_zoomLabel);
+    m_toolbar->addWidget(m_zoomLabel);
 
     QToolButton *zoomInBtn = new QToolButton(this);
     zoomInBtn->setText("+");
     zoomInBtn->setToolTip(tr("Zoom In (Ctrl++)"));
     connect(zoomInBtn, &QToolButton::clicked, this, &MainWindow::zoomIn);
-    toolbar->addWidget(zoomInBtn);
+    m_toolbar->addWidget(zoomInBtn);
 
-    toolbar->addSeparator();
+    m_toolbar->addSeparator();
 
     // Theme Toggle Button
     m_themeButton = new QToolButton(this);
     m_themeButton->setText(tr("🌓"));
     m_themeButton->setToolTip(tr("Toggle Dark / Light Theme (Ctrl+D)"));
     connect(m_themeButton, &QToolButton::clicked, this, &MainWindow::toggleTheme);
-    toolbar->addWidget(m_themeButton);
+    m_toolbar->addWidget(m_themeButton);
 
     // Always on Top Button
     m_stayOnTopButton = new QToolButton(this);
@@ -447,26 +446,26 @@ void MainWindow::setupUI()
     m_stayOnTopButton->setIcon(QIcon(":/icons/pin.png"));
     m_stayOnTopButton->setToolTip(tr("Always on Top"));
     connect(m_stayOnTopButton, &QToolButton::toggled, this, &MainWindow::toggleStayOnTop);
-    toolbar->addWidget(m_stayOnTopButton);
+    m_toolbar->addWidget(m_stayOnTopButton);
 
     // Preferences / Settings Button
     m_settingsButton = new QToolButton(this);
     m_settingsButton->setText("⚙");
     m_settingsButton->setToolTip(tr("Preferences & Settings"));
     connect(m_settingsButton, &QToolButton::clicked, this, &MainWindow::openSettings);
-    toolbar->addWidget(m_settingsButton);
+    m_toolbar->addWidget(m_settingsButton);
 
     // Spacer
     QWidget *spacer = new QWidget(this);
     spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
-    toolbar->addWidget(spacer);
+    m_toolbar->addWidget(spacer);
 
     // Status Indicator Label
     m_statusLabel = new QLabel(tr("Ready"), this);
-    m_statusLabel->setStyleSheet("color: palette(mid); font-size: 11px; padding-right: 8px;");
-    toolbar->addWidget(m_statusLabel);
+    m_toolbar->addWidget(m_statusLabel);
 
-    addToolBar(Qt::TopToolBarArea, toolbar);
+    addToolBar(Qt::TopToolBarArea, m_toolbar);
+    applyNativeTheme(true);
 }
 
 void MainWindow::setupShortcuts()
@@ -735,13 +734,106 @@ void MainWindow::openDownloads()
 
 void MainWindow::toggleTheme()
 {
-    applyTheme(!m_isDarkTheme);
+    const bool nextDark = !m_isDarkTheme;
+    QSettings settings;
+    settings.setValue("Appearance/Theme", nextDark ? 1 : 2);
+    settings.sync();
+    applyTheme(nextDark);
+}
+
+void MainWindow::applyNativeTheme(bool dark)
+{
+    QPalette appPalette;
+    if (dark) {
+        appPalette.setColor(QPalette::Window, QColor(0x11, 0x1b, 0x21));
+        appPalette.setColor(QPalette::WindowText, QColor(0xe9, 0xed, 0xef));
+        appPalette.setColor(QPalette::Base, QColor(0x20, 0x2c, 0x33));
+        appPalette.setColor(QPalette::AlternateBase, QColor(0x2a, 0x39, 0x42));
+        appPalette.setColor(QPalette::ToolTipBase, QColor(0x20, 0x2c, 0x33));
+        appPalette.setColor(QPalette::ToolTipText, QColor(0xe9, 0xed, 0xef));
+        appPalette.setColor(QPalette::Text, QColor(0xe9, 0xed, 0xef));
+        appPalette.setColor(QPalette::Button, QColor(0x20, 0x2c, 0x33));
+        appPalette.setColor(QPalette::ButtonText, QColor(0xe9, 0xed, 0xef));
+        appPalette.setColor(QPalette::BrightText, Qt::white);
+        appPalette.setColor(QPalette::Link, QColor(0x25, 0xd3, 0x66));
+        appPalette.setColor(QPalette::Highlight, QColor(0x00, 0xa8, 0x84));
+        appPalette.setColor(QPalette::HighlightedText, Qt::white);
+        appPalette.setColor(QPalette::Mid, QColor(0x37, 0x42, 0x48));
+        appPalette.setColor(QPalette::Midlight, QColor(0x2a, 0x39, 0x42));
+        appPalette.setColor(QPalette::Dark, QColor(0x0b, 0x14, 0x1a));
+        appPalette.setColor(QPalette::Disabled, QPalette::Text, QColor(0x86, 0x96, 0xa0));
+        appPalette.setColor(QPalette::Disabled, QPalette::ButtonText, QColor(0x86, 0x96, 0xa0));
+    } else {
+        appPalette.setColor(QPalette::Window, QColor(0xf0, 0xf2, 0xf5));
+        appPalette.setColor(QPalette::WindowText, QColor(0x11, 0x1b, 0x21));
+        appPalette.setColor(QPalette::Base, Qt::white);
+        appPalette.setColor(QPalette::AlternateBase, QColor(0xf5, 0xf6, 0xf6));
+        appPalette.setColor(QPalette::ToolTipBase, Qt::white);
+        appPalette.setColor(QPalette::ToolTipText, QColor(0x11, 0x1b, 0x21));
+        appPalette.setColor(QPalette::Text, QColor(0x11, 0x1b, 0x21));
+        appPalette.setColor(QPalette::Button, QColor(0xf0, 0xf2, 0xf5));
+        appPalette.setColor(QPalette::ButtonText, QColor(0x11, 0x1b, 0x21));
+        appPalette.setColor(QPalette::BrightText, Qt::black);
+        appPalette.setColor(QPalette::Link, QColor(0x00, 0x80, 0x69));
+        appPalette.setColor(QPalette::Highlight, QColor(0x00, 0x80, 0x69));
+        appPalette.setColor(QPalette::HighlightedText, Qt::white);
+        appPalette.setColor(QPalette::Mid, QColor(0xd1, 0xd7, 0xdb));
+        appPalette.setColor(QPalette::Midlight, QColor(0xe9, 0xed, 0xef));
+        appPalette.setColor(QPalette::Dark, QColor(0xb0, 0xb8, 0xbe));
+        appPalette.setColor(QPalette::Disabled, QPalette::Text, QColor(0x86, 0x96, 0xa0));
+        appPalette.setColor(QPalette::Disabled, QPalette::ButtonText, QColor(0x86, 0x96, 0xa0));
+    }
+
+    QApplication::setPalette(appPalette);
+    setPalette(appPalette);
+
+    if (m_toolbar) {
+        if (dark) {
+            m_toolbar->setStyleSheet(
+                "QToolBar { background-color: #202c33; border-bottom: 1px solid #2a3942; spacing: 4px; padding: 2px 8px; }"
+                "QToolBar::separator { background-color: #374248; width: 1px; margin: 4px 6px; }"
+                "QToolButton { color: #e9edef; background: transparent; border: none; border-radius: 4px; padding: 4px; }"
+                "QToolButton:hover { background-color: #2a3942; color: #ffffff; }"
+                "QToolButton:pressed { background-color: #374248; }"
+                "QToolButton:checked { background-color: #374248; color: #25d366; }"
+            );
+        } else {
+            m_toolbar->setStyleSheet(
+                "QToolBar { background-color: #f0f2f5; border-bottom: 1px solid #d1d7db; spacing: 4px; padding: 2px 8px; }"
+                "QToolBar::separator { background-color: #d1d7db; width: 1px; margin: 4px 6px; }"
+                "QToolButton { color: #111b21; background: transparent; border: none; border-radius: 4px; padding: 4px; }"
+                "QToolButton:hover { background-color: #e1e5e8; color: #111b21; }"
+                "QToolButton:pressed { background-color: #d1d7db; }"
+                "QToolButton:checked { background-color: #d9dbdf; color: #008069; }"
+            );
+        }
+    }
+
+    if (m_zoomLabel) {
+        m_zoomLabel->setStyleSheet(dark
+            ? "color: #d1d7db; background: transparent; font-weight: 500;"
+            : "color: #3b4a54; background: transparent; font-weight: 500;");
+    }
+
+    if (m_statusLabel) {
+        m_statusLabel->setStyleSheet(dark
+            ? "color: #8696a0; font-size: 11px; padding-right: 8px; background: transparent;"
+            : "color: #667781; font-size: 11px; padding-right: 8px; background: transparent;");
+    }
+
+    if (m_themeButton) {
+        m_themeButton->setToolTip(dark
+            ? tr("Switch to Light Theme (Ctrl+D)")
+            : tr("Switch to Dark Theme (Ctrl+D)"));
+    }
 }
 
 void MainWindow::applyTheme(bool dark)
 {
     m_isDarkTheme = dark;
+    applyNativeTheme(dark);
     if (m_webPage) {
+        m_webPage->setBackgroundColor(dark ? QColor(0x11, 0x1b, 0x21) : QColor(0xff, 0xff, 0xff));
         m_webPage->applyTheme(dark);
     }
 }
